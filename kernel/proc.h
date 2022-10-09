@@ -121,4 +121,9 @@ struct proc
   uint rtime; // How long the process ran for
   uint ctime; // When was the process created
   uint etime; // When did the process exited
+
+  // #ifdef LBS
+  uint tickets;
+  uint time_slice;
+  // #endif
 };

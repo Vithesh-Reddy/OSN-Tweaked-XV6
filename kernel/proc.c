@@ -5,6 +5,8 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
+#include <stdlib.h>
+#include <time.h>
 
 struct cpu cpus[NCPU];
 
@@ -107,6 +109,7 @@ int allocpid()
 static struct proc *
 allocproc(void)
 {
+  srand(time(NULL));
   struct proc *p;
 
   for (p = proc; p < &proc[NPROC]; p++)
@@ -153,6 +156,11 @@ found:
   p->rtime = 0;
   p->etime = 0;
   p->ctime = ticks;
+
+#ifdef LBS
+  p->tickets = 1;
+  p->time_slice = 1;
+#endif
 
   return p;
 }
@@ -332,6 +340,10 @@ int fork(void)
   acquire(&np->lock);
   np->state = RUNNABLE;
   release(&np->lock);
+
+#ifdef LBS
+  np->tickets = p->tickets;
+#endif
 
   return pid;
 }
@@ -613,16 +625,53 @@ void scheduler(void)
     }
 
     struct proc *final = &proc[req_proc_no];
-    final->state =  RUNNING;
+    final->state = RUNNING;
     c->proc = final;
     swtch(&c->context, &final->context);
 
     c->proc = 0;
     release(&(&proc[req_proc_no])->lock);
-
   }
 }
 #endif
+
+// #ifdef LBS
+void scheduler(void)
+{
+  struct proc *p;
+  struct cpu *c = mycpu();
+
+  c->proc = 0;
+
+  for (;;)
+  {
+    // Avoid deadlock by ensuring that devices can interrupt.
+    intr_on();
+
+    for (p = proc; p < &proc[NPROC]; p++)
+    {
+      acquire(&p->lock);
+      if (p->state == RUNNABLE)
+      {
+        // Switch to chosen process.  It is the process's job
+        // to release its lock and then reacquire it
+        // before jumping back to us.
+
+        p->time_slice = (p->tickets) * (rand() % 5);
+
+        p->state = RUNNING;
+        c->proc = p;
+        swtch(&c->context, &p->context);
+
+        // Process is done running for now.
+        // It should have changed its p->state before coming back.
+        c->proc = 0;
+      }
+      release(&p->lock);
+    }
+  }
+}
+// #endif
 
 // Switch to scheduler.  Must hold only p->lock
 // and have changed proc->state. Saves and restores
