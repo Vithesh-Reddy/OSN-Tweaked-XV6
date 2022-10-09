@@ -117,7 +117,7 @@ struct proc
   struct inode *cwd;           // Current directory
   char name[16];               // Process name (debugging)
 
-  // New
+  /* ------------------  New ----------------------------------------------------------------*/
   uint rtime; // How long the process ran for
   uint ctime; // When was the process created
   uint etime; // When did the process exited

@@ -528,7 +528,7 @@ void update_time()
 //  - swtch to start running that process.
 //  - eventually that process transfers control
 //    via swtch back to the scheduler.
-#ifdef DEFAULT
+#ifdef RR
 void scheduler(void)
 {
   struct proc *p;
@@ -563,7 +563,65 @@ void scheduler(void)
 #endif
 
 #ifdef FCFS
+void scheduler(void)
+{
+  struct proc *p;
 
+  struct cpu *c = mycpu();
+  c->proc = 0;
+
+  int ct = 0;
+  int min_time = -7;
+  int req_proc_no = -1;
+
+  for (;;)
+  {
+    // Avoid deadlock by ensuring that devices can interrupt.
+    intr_on();
+
+    for (p = proc; p < &proc[NPROC]; p++)
+    {
+      acquire(&p->lock);
+      if (p->state == RUNNABLE)
+      {
+        if (ct == 0)
+        {
+          min_time = p->ctime;
+          req_proc_no = ct;
+          ct++;
+          continue;
+        }
+        else if (p->ctime < (&proc[req_proc_no])->ctime)
+        {
+          release(&(&proc[req_proc_no])->lock);
+          min_time = p->ctime;
+          req_proc_no = ct;
+          ct++;
+          continue;
+        }
+      }
+      else
+      {
+        release(&p->lock);
+      }
+      ct++;
+    }
+
+    if (min_time == -7)
+    {
+      continue; // no process found
+    }
+
+    struct proc *final = &proc[req_proc_no];
+    final->state =  RUNNING;
+    c->proc = final;
+    swtch(&c->context, &final->context);
+
+    c->proc = 0;
+    release(&(&proc[req_proc_no])->lock);
+
+  }
+}
 #endif
 
 // Switch to scheduler.  Must hold only p->lock
