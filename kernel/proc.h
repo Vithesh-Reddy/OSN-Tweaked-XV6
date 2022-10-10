@@ -134,4 +134,12 @@ struct proc
   int wait_time;
   int ticks_elapsed;
   // #endif
+
+  // #ifdef PBS
+  int static_priority;
+  int sleep_time;
+  int run_time;
+  uint times_scheduled;
+  uint entry_time;
+  // #endif 
 };
