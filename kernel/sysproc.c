@@ -53,6 +53,15 @@ sys_waitx(void)
 }
 
 uint64
+sys_set_tickets(void)
+{
+  int number = 1;
+  argint(0, &number);
+
+  return set_tickets(number);
+}
+
+uint64
 sys_sbrk(void)
 {
   uint64 addr;

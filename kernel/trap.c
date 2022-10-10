@@ -84,6 +84,35 @@ void usertrap(void)
     yield();
 #endif
 
+#ifdef LBS
+  if (which_dev == 2)
+  {
+    p->lbs_ticks++;
+    if (p->lbs_ticks >= p->time_slice)
+    {
+      p->lbs_ticks = 0;
+      yield();
+    }
+  }
+#endif
+
+#ifdef MLFQ
+  if (which_dev == 2)
+  {
+    p->ticks_elapsed++;
+    if (p->ticks_elapsed >= p->ass_ticks)
+    {
+      p->ticks_elapsed = 0;
+      if (p->priority_level < 4)
+      {
+        p->priority_level++;
+        p->ass_ticks *= 2;
+      }
+      yield();
+    }
+  }
+#endif
+
   usertrapret();
 }
 
@@ -157,6 +186,35 @@ void kerneltrap()
 #ifdef RR
   if (which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING)
     yield();
+#endif
+
+#ifdef LBS
+  if (which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING)
+  {
+    p->lbs_ticks++;
+    if (p->lbs_ticks >= p->time_slice)
+    {
+      p->lbs_ticks = 0;
+      yield();
+    }
+  }
+#endif
+
+#ifdef MLFQ
+  if (which_dev == 2 && myproc() != 0 && myproc()->state == RUNNING)
+  {
+    p->ticks_elapsed++;
+    if (p->ticks_elapsed >= p->ass_ticks)
+    {
+      p->ticks_elapsed = 0;
+      if (p->priority_level < 4)
+      {
+        p->priority_level++;
+        p->ass_ticks *= 2;
+      }
+      yield();
+    }
+  }
 #endif
 
   // the yield() may have caused some traps to occur,

@@ -125,5 +125,13 @@ struct proc
   // #ifdef LBS
   uint tickets;
   uint time_slice;
+  int lbs_ticks;
+  // #endif
+
+  // #ifdef MLFQ
+  int priority_level;
+  int ass_ticks;
+  int wait_time;
+  int ticks_elapsed;
   // #endif
 };

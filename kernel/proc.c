@@ -8,6 +8,8 @@
 #include <stdlib.h>
 #include <time.h>
 
+#define AGE 36
+
 struct cpu cpus[NCPU];
 
 struct proc proc[NPROC];
@@ -160,6 +162,14 @@ found:
 #ifdef LBS
   p->tickets = 1;
   p->time_slice = 1;
+  p->lbs_ticks = 0;
+#endif
+
+#ifdef MLFQ
+  p->priority_level = 0;
+  p->ass_ticks = 1;
+  p->ticks_elapsed = 0;
+
 #endif
 
   return p;
@@ -343,6 +353,14 @@ int fork(void)
 
 #ifdef LBS
   np->tickets = p->tickets;
+#endif
+
+#ifdef MLFQ
+  if (p->priority_level > 0) // pre-empt when a new process enters higher level queue
+  {
+    p->ticks_elapsed = 0;
+    yield();
+  }
 #endif
 
   return pid;
@@ -529,6 +547,10 @@ void update_time()
     {
       p->rtime++;
     }
+    else
+    {
+      p->wait_time++;
+    }
     release(&p->lock);
   }
 }
@@ -635,7 +657,7 @@ void scheduler(void)
 }
 #endif
 
-// #ifdef LBS
+#ifdef LBS
 void scheduler(void)
 {
   struct proc *p;
@@ -671,7 +693,114 @@ void scheduler(void)
     }
   }
 }
-// #endif
+#endif
+
+#ifdef MLFQ
+
+void aging_check()
+{
+  struct proc *p;
+  for (p = proc; p < &proc[NPROC]; p++)
+  {
+    if ((p->state == SLEEPING || p->state == RUNNABLE) && p->wait_time > AGE && p->priority_level != 0)
+    {
+      p->wait_time = 0;
+      p->priority_level--;
+      p->ass_ticks /= 2;
+    }
+  }
+}
+
+void scheduler(void)
+{
+  struct proc *p;
+  struct cpu *c = mycpu();
+
+  c->proc = 0;
+
+  int ct = 0;
+  int min_time = -7;
+  int req_proc_no = -1;
+  int found = -1;
+
+  for (;;)
+  {
+    intr_on();
+    aging_check();
+
+    for (int i = 0; i < 4; i++) // FCFS for first 4 levels
+    {
+      for (p = proc; p < &proc[NPROC]; p++)
+      {
+        acquire(&p->lock);
+        if (p->state == RUNNABLE && p->priority_level == i)
+        {
+          if (ct == 0)
+          {
+            min_time = p->ctime;
+            req_proc_no = ct;
+            ct++;
+            continue;
+          }
+          else if (p->ctime < (&proc[req_proc_no])->ctime)
+          {
+            release(&(&proc[req_proc_no])->lock);
+            min_time = p->ctime;
+            req_proc_no = ct;
+            ct++;
+            continue;
+          }
+        }
+        else
+        {
+          release(&p->lock);
+        }
+        ct++;
+      }
+      if (min_time == -7)
+      {
+        continue;
+      }
+      else
+      {
+        struct proc *final = &proc[req_proc_no];
+        final->state = RUNNING;
+        final->wait_time = 0;
+        c->proc = final;
+        swtch(&c->context, &final->context);
+
+        c->proc = 0;
+        release(&(&proc[req_proc_no])->lock);
+        found = 1;
+        break;
+      }
+    }
+
+    if (found == -1) // RR for last priority level
+    {
+      for (p = proc; p < &proc[NPROC]; p++)
+      {
+        acquire(&p->lock);
+        if (p->state == RUNNABLE && p->priority_level == 4)
+        {
+          // Switch to chosen process.  It is the process's job
+          // to release its lock and then reacquire it
+          // before jumping back to us.
+          p->state = RUNNING;
+          c->proc = p;
+          swtch(&c->context, &p->context);
+
+          // Process is done running for now.
+          // It should have changed its p->state before coming back.
+          c->proc = 0;
+        }
+        release(&p->lock);
+      }
+    }
+  }
+}
+
+#endif
 
 // Switch to scheduler.  Must hold only p->lock
 // and have changed proc->state. Saves and restores
@@ -775,6 +904,13 @@ void wakeup(void *chan)
       {
         p->state = RUNNABLE;
       }
+#ifdef LBS
+      p->lbs_ticks = 0;
+#endif
+
+#ifdef MLFQ
+      p->ticks_elapsed = 0;
+#endif
       release(&p->lock);
     }
   }
@@ -884,4 +1020,14 @@ void procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+int set_tickets(int no_of_tickets)
+{
+  struct proc *p;
+  p = mycpu();
+
+  p->tickets = no_of_tickets;
+
+  return 1;
 }
