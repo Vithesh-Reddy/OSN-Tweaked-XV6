@@ -126,4 +126,12 @@ struct proc
   uint tickets;
   uint time_slice;
   // #endif
+
+  // #ifdef PBS
+  int static_priority;
+  int sleep_time;
+  int run_time;
+  uint times_scheduled;
+  uint entry_time;
+  // #endif 
 };

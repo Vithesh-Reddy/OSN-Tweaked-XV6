@@ -162,6 +162,14 @@ found:
   p->time_slice = 1;
 #endif
 
+  // #ifdef PBS
+  p->static_priority = 60;
+  p->sleep_time = -1;
+  p->run_time = -1;
+  p->times_scheduled = 0;
+  p->entry_time = ticks;
+  // #endif
+
   return p;
 }
 
@@ -673,6 +681,106 @@ void scheduler(void)
 }
 // #endif
 
+// #ifdef PBS
+int dpclaculator(struct proc *p)
+{
+  // Calculating niceness
+  int niceness = 5;
+  if (p->sleep_time != -1 || p->run_time != -1)
+    niceness = (int)((p->sleep_time) / (p->sleep_time + p->run_time)) * 10;
+
+  // Calculating dynamic priority
+  int dp = max(0, min(p->static_priority - (niceness - 5), 100));
+
+  return dp;
+}
+
+int prioritizer(struct proc *p, struct proc *q)
+{
+  int priority_p = dpclaculator(p);
+  int priority_q = dpclaculator(q);
+
+  // Nested else if.
+  // Compare priority.
+  if (priority_p < priority_q)
+    return 1;
+  else
+    return -1;
+
+  // If priorities are same compare no.of times process was scheduled.
+  if (p->times_scheduled < q->times_scheduled)
+    return 1;
+  else
+    return -1;
+
+  // Still a tie, compare entry times of processes to ready queue.
+  if (p->entry_time < q->entry_time)
+    return 1;
+  else
+    return -1;
+
+  // When everything is tied return randomly.
+  return 1;
+}
+
+void scheduler(void)
+{
+  struct proc *p;
+  struct cpu *c = mycpu();
+  c->proc = 0;
+
+  int ct = 0;
+  int req_proc_no = -1;
+
+  for (;;)
+  {
+    // Avoid deadlock by ensuring that devices can interrupt.
+    intr_on();
+
+    for (p = proc; p < &proc[NPROC]; p++)
+    {
+      acquire(&p->lock);
+      if (p->state == RUNNABLE)
+      {
+        if (ct == 0)
+        {
+          req_proc_no = ct;
+          ct++;
+          continue;
+        }
+        else if (prioritizer(p, &proc[req_proc_no]))
+        {
+          release(&(&proc[req_proc_no])->lock);
+          req_proc_no = ct;
+          ct++;
+          continue;
+        }
+      }
+      else
+      {
+        release(&p->lock);
+      }
+      ct++;
+    }
+
+    // No process found
+    if (ct == 0)
+      continue;
+
+    struct proc *final = &proc[req_proc_no];
+    final->state = RUNNING;
+    final->times_scheduled++;
+    final->sleep_time = 0;
+    final->run_time = ticks;
+    c->proc = final;
+    swtch(&c->context, &final->context);
+
+    c->proc = 0;
+    release(&(&proc[req_proc_no])->lock);
+  }
+}
+// #endif
+
 // Switch to scheduler.  Must hold only p->lock
 // and have changed proc->state. Saves and restores
 // intena because intena is a property of this
@@ -750,6 +858,11 @@ void sleep(void *chan, struct spinlock *lk)
   p->chan = chan;
   p->state = SLEEPING;
 
+  // #ifdef PBS
+  p->sleep_time = ticks;
+  p->run_time = ticks - (p->run_time);
+  // #endif
+
   sched();
 
   // Tidy up.
@@ -774,6 +887,10 @@ void wakeup(void *chan)
       if (p->state == SLEEPING && p->chan == chan)
       {
         p->state = RUNNABLE;
+        // #ifdef PBS
+        p->sleep_time = ticks - (p->sleep_time);
+        p->entry_time = ticks;
+        // #endif
       }
       release(&p->lock);
     }
@@ -884,4 +1001,39 @@ void procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+int setpriority(int new_priority, int pid)
+{
+  int process_pid = -1;
+  struct proc *p;
+  int old_priority = -1;
+
+  for (p = proc; p < &proc[NPROC]; p++)
+  {
+    acquire(&p->lock);
+    if (pid == p->pid)
+    {
+      process_pid = p->pid;
+      old_priority = p->static_priority;
+      break;
+    }
+    release(&p->lock);
+  }
+  if (process_pid < -1) {
+    printf("Error: No process found\n");
+    return old_priority;
+  }
+  if (new_priority < 0 || new_priority > 100) {
+    printf("Error: The value of priority can only be set from 0 to 100\n");
+    release(&p->lock);
+    return old_priority;
+  }
+  p->static_priority = new_priority;
+  p->run_time = -1;
+  p->sleep_time = -1;
+  release(&p->lock);
+  if (new_priority < old_priority)
+    yield();
+  return old_priority;
 }
