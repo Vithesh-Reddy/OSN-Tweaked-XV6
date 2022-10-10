@@ -3,7 +3,7 @@
 #include "user/user.h"
 #include "kernel/fcntl.h"
 
-int main(int argc, int *argv[])
+int main(int argc, char *argv[])
 {
     int new_priority = atoi(argv[1]);
     int pid = atoi(argv[2]);

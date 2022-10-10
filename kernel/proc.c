@@ -5,8 +5,8 @@
 #include "spinlock.h"
 #include "proc.h"
 #include "defs.h"
-#include <stdlib.h>
-#include <time.h>
+#include "stdlib.h"
+#include "time.h"
 
 #define AGE 36
 
@@ -50,6 +50,8 @@ void proc_mapstacks(pagetable_t kpgtbl)
 // initialize the proc table.
 void procinit(void)
 {
+  // srand(time(NULL));
+
   struct proc *p;
 
   initlock(&pid_lock, "nextpid");
@@ -111,7 +113,7 @@ int allocpid()
 static struct proc *
 allocproc(void)
 {
-  srand(time(NULL));
+
   struct proc *p;
 
   for (p = proc; p < &proc[NPROC]; p++)
@@ -172,13 +174,13 @@ found:
 
 #endif
 
-  // #ifdef PBS
+#ifdef PBS
   p->static_priority = 60;
   p->sleep_time = -1;
   p->run_time = -1;
   p->times_scheduled = 0;
   p->entry_time = ticks;
-  // #endif
+#endif
 
   return p;
 }
@@ -557,7 +559,9 @@ void update_time()
     }
     else
     {
+#ifdef MLFQ
       p->wait_time++;
+#endif
     }
     release(&p->lock);
   }
@@ -810,7 +814,7 @@ void scheduler(void)
 
 #endif
 
-// #ifdef PBS
+#ifdef PBS
 int dpclaculator(struct proc *p)
 {
   // Calculating niceness
@@ -908,7 +912,7 @@ void scheduler(void)
     release(&(&proc[req_proc_no])->lock);
   }
 }
-// #endif
+#endif
 
 // Switch to scheduler.  Must hold only p->lock
 // and have changed proc->state. Saves and restores
@@ -987,10 +991,10 @@ void sleep(void *chan, struct spinlock *lk)
   p->chan = chan;
   p->state = SLEEPING;
 
-  // #ifdef PBS
+#ifdef PBS
   p->sleep_time = ticks;
   p->run_time = ticks - (p->run_time);
-  // #endif
+#endif
 
   sched();
 
@@ -1016,10 +1020,10 @@ void wakeup(void *chan)
       if (p->state == SLEEPING && p->chan == chan)
       {
         p->state = RUNNABLE;
-        // #ifdef PBS
+#ifdef PBS
         p->sleep_time = ticks - (p->sleep_time);
         p->entry_time = ticks;
-        // #endif
+#endif
       }
 #ifdef LBS
       p->lbs_ticks = 0;
@@ -1141,6 +1145,7 @@ void procdump(void)
 
 int setpriority(int new_priority, int pid)
 {
+#ifdef PBS
   int process_pid = -1;
   struct proc *p;
   int old_priority = -1;
@@ -1156,11 +1161,13 @@ int setpriority(int new_priority, int pid)
     }
     release(&p->lock);
   }
-  if (process_pid < -1) {
+  if (process_pid == -1)
+  {
     printf("Error: No process found\n");
     return old_priority;
   }
-  if (new_priority < 0 || new_priority > 100) {
+  if (new_priority < 0 || new_priority > 100)
+  {
     printf("Error: The value of priority can only be set from 0 to 100\n");
     release(&p->lock);
     return old_priority;
@@ -1172,13 +1179,19 @@ int setpriority(int new_priority, int pid)
   if (new_priority < old_priority)
     yield();
   return old_priority;
+#endif
+  return -2;
 }
+
 int set_tickets(int no_of_tickets)
 {
+#ifdef LBS
+
   struct proc *p;
-  p = mycpu();
+  p = myproc();
 
   p->tickets = no_of_tickets;
 
+#endif
   return 1;
 }

@@ -135,11 +135,11 @@ struct proc
   int ticks_elapsed;
   // #endif
 
-  // #ifdef PBS
+  #ifdef PBS
   int static_priority;
   int sleep_time;
   int run_time;
   uint times_scheduled;
   uint entry_time;
-  // #endif 
+  #endif 
 };
