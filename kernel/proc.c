@@ -1076,7 +1076,19 @@ int kill(int pid)
       p->killed = 1;
       if (p->state == SLEEPING)
       {
-        // Wake process from sleep().
+// Wake process from sleep().
+#ifdef PBS
+        p->sleep_time = ticks - (p->sleep_time);
+        p->entry_time = ticks;
+#endif
+
+#ifdef MLFQ
+        p->ticks_elapsed = 0;
+#endif
+
+#ifdef LBS
+        p->lbs_ticks = 0;
+#endif
         p->state = RUNNABLE;
       }
       release(&p->lock);
