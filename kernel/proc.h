@@ -122,18 +122,18 @@ struct proc
   uint ctime; // When was the process created
   uint etime; // When did the process exited
 
-  // #ifdef LBS
+  #ifdef LBS
   uint tickets;
   uint time_slice;
   int lbs_ticks;
-  // #endif
+  #endif
 
-  // #ifdef MLFQ
+  #ifdef MLFQ
   int priority_level;
   int ass_ticks;
   int wait_time;
   int ticks_elapsed;
-  // #endif
+  #endif
 
   #ifdef PBS
   int static_priority;

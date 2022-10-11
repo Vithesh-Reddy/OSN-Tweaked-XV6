@@ -8,6 +8,16 @@
 #include "stdlib.h"
 #include "time.h"
 
+#define MAX(x, y) \
+  ({ typeof (x) _x = (x); \
+           typeof (y) _y = (y); \
+         _x > _y ? _x : _y; })
+
+#define MIN(x, y) \
+  ({ typeof (x) _x = (x); \
+           typeof (y) _y = (y); \
+         _x < _y ? _x : _y; })
+
 #define AGE 36
 
 struct cpu cpus[NCPU];
@@ -618,13 +628,15 @@ void scheduler(void)
 
   int ct = 0;
   int min_time = -7;
-  int req_proc_no = -1;
+  // int req_proc_no = -1;
+  struct proc *reqp;
 
   for (;;)
   {
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
-
+    min_time = -1;
+    ct = 0;
     for (p = proc; p < &proc[NPROC]; p++)
     {
       acquire(&p->lock);
@@ -633,38 +645,40 @@ void scheduler(void)
         if (ct == 0)
         {
           min_time = p->ctime;
-          req_proc_no = ct;
+          reqp = p;
+          // req_proc_no = ct;
           ct++;
           continue;
         }
-        else if (p->ctime < (&proc[req_proc_no])->ctime)
+        else if (p->ctime < reqp->ctime)
         {
-          release(&(&proc[req_proc_no])->lock);
+          release(&reqp->lock);
           min_time = p->ctime;
-          req_proc_no = ct;
+          reqp = p;
+          // req_proc_no = ct;
           ct++;
           continue;
         }
       }
-      else
-      {
-        release(&p->lock);
-      }
+      // else
+      // {
+      release(&p->lock);
+      // }
       ct++;
     }
 
-    if (min_time == -7)
+    if (min_time == -1)
     {
       continue; // no process found
     }
 
-    struct proc *final = &proc[req_proc_no];
-    final->state = RUNNING;
-    c->proc = final;
-    swtch(&c->context, &final->context);
+    // struct proc *final = &proc[req_proc_no];
+    reqp->state = RUNNING;
+    c->proc = reqp;
+    swtch(&c->context, &reqp->context);
 
     c->proc = 0;
-    release(&(&proc[req_proc_no])->lock);
+    release(&reqp->lock);
   }
 }
 #endif
@@ -733,11 +747,15 @@ void scheduler(void)
   int ct = 0;
   int min_time = -7;
   int req_proc_no = -1;
+  struct proc *reqp;
   int found = -1;
 
   for (;;)
   {
     intr_on();
+    min_time = -1;
+    ct = 0;
+
     aging_check();
 
     for (int i = 0; i < 4; i++) // FCFS for first 4 levels
@@ -750,39 +768,41 @@ void scheduler(void)
           if (ct == 0)
           {
             min_time = p->ctime;
+            reqp = p;
             req_proc_no = ct;
             ct++;
             continue;
           }
-          else if (p->ctime < (&proc[req_proc_no])->ctime)
+          else if (p->ctime < reqp->ctime)
           {
-            release(&(&proc[req_proc_no])->lock);
+            release(&reqp->lock);
             min_time = p->ctime;
+            reqp = p;
             req_proc_no = ct;
             ct++;
             continue;
           }
         }
-        else
-        {
-          release(&p->lock);
-        }
+        // else
+        // {
+        release(&p->lock);
+        // }
         ct++;
       }
-      if (min_time == -7)
+      if (min_time == -1)
       {
         continue;
       }
       else
       {
-        struct proc *final = &proc[req_proc_no];
-        final->state = RUNNING;
-        final->wait_time = 0;
-        c->proc = final;
-        swtch(&c->context, &final->context);
+        // struct proc *final = &proc[req_proc_no];
+        reqp->state = RUNNING;
+        reqp->wait_time = 0;
+        c->proc = reqp;
+        swtch(&c->context, &reqp->context);
 
         c->proc = 0;
-        release(&(&proc[req_proc_no])->lock);
+        release(&reqp->lock);
         found = 1;
         break;
       }
@@ -823,7 +843,7 @@ int dpclaculator(struct proc *p)
     niceness = (int)((p->sleep_time) / (p->sleep_time + p->run_time)) * 10;
 
   // Calculating dynamic priority
-  int dp = max(0, min(p->static_priority - (niceness - 5), 100));
+  int dp = MAX(0, MIN(p->static_priority - (niceness - 5), 100));
 
   return dp;
 }
@@ -863,12 +883,14 @@ void scheduler(void)
   c->proc = 0;
 
   int ct = 0;
+  struct proc *reqp;
   int req_proc_no = -1;
 
   for (;;)
   {
     // Avoid deadlock by ensuring that devices can interrupt.
     intr_on();
+    ct = 0;
 
     for (p = proc; p < &proc[NPROC]; p++)
     {
@@ -877,22 +899,24 @@ void scheduler(void)
       {
         if (ct == 0)
         {
+          reqp = p;
           req_proc_no = ct;
           ct++;
           continue;
         }
-        else if (prioritizer(p, &proc[req_proc_no]))
+        else if (prioritizer(p, reqp))
         {
-          release(&(&proc[req_proc_no])->lock);
+          release(&reqp->lock);
+          reqp = p;
           req_proc_no = ct;
           ct++;
           continue;
         }
       }
-      else
-      {
-        release(&p->lock);
-      }
+      // else
+      // {
+      release(&p->lock);
+      // }
       ct++;
     }
 
@@ -900,16 +924,16 @@ void scheduler(void)
     if (ct == 0)
       continue;
 
-    struct proc *final = &proc[req_proc_no];
-    final->state = RUNNING;
-    final->times_scheduled++;
-    final->sleep_time = 0;
-    final->run_time = ticks;
-    c->proc = final;
-    swtch(&c->context, &final->context);
+    // struct proc *final = &proc[req_proc_no];
+    reqp->state = RUNNING;
+    reqp->times_scheduled++;
+    reqp->sleep_time = 0;
+    reqp->run_time = ticks;
+    c->proc = reqp;
+    swtch(&c->context, &reqp->context);
 
     c->proc = 0;
-    release(&(&proc[req_proc_no])->lock);
+    release(&reqp->lock);
   }
 }
 #endif
