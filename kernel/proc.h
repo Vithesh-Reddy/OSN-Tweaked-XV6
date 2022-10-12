@@ -122,6 +122,8 @@ struct proc
   uint ctime; // When was the process created
   uint etime; // When did the process exited
 
+  int mask;   // Mask used for trace()
+
   #ifdef LBS
   uint tickets;
   uint time_slice;

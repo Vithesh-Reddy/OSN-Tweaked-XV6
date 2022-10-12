@@ -119,6 +119,13 @@ sys_uptime(void)
 }
 
 uint64
+sys_trace(void)
+{
+  argint(0, &myproc()->mask);
+  return 0;
+}
+
+uint64
 sys_set_priority(void)
 {
   int new_priority, pid;
