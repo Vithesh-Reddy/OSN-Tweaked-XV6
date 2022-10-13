@@ -24,3 +24,5 @@
 #define SYS_set_priority 23
 #define SYS_set_tickets  24
 #define SYS_trace 25
+#define SYS_sigalarm 26
+#define SYS_sigreturn 27

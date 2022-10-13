@@ -101,6 +101,8 @@ extern uint64 sys_close(void);
 extern uint64 sys_trace(void);
 extern uint64 sys_set_priority(void);
 extern uint64 sys_set_tickets(void);
+extern uint64 sys_sigalarm(void);
+extern uint64 sys_sigreturn(void);
 
 struct syscallinfo
 {
@@ -156,8 +158,14 @@ static struct syscallinfo syscallnames[] =
         { "waitx", 3 },
         [SYS_set_priority]
         { "set_priority", 2 },
+        [SYS_set_tickets]
+        { "set_tickets", 1 },
         [SYS_trace]
         { "trace", 1 },
+         [SYS_sigalarm]
+        { "sigalarm", 2 },
+         [SYS_sigreturn]
+        { "sigreturn", 0 },
 };
 
 // An array mapping syscall numbers from syscall.h
@@ -188,9 +196,9 @@ static uint64 (*syscalls[])(void) = {
     [SYS_trace] sys_trace,
     [SYS_set_tickets] sys_set_tickets,
     [SYS_set_priority] sys_set_priority,
+    [SYS_sigalarm] sys_sigalarm,
+    [SYS_sigreturn] sys_sigreturn,
 };
-
-
 
 void syscall(void)
 {
@@ -213,9 +221,9 @@ void syscall(void)
       for (int i = 1; i < syscallnames[num].num_of_args; i++)
       {
         // printf("\nlog %d\n", i);
-        printf("%d ",argraw(i));
+        printf("%d ", argraw(i));
       }
-      printf(") -> %d\n",p->trapframe->a0);
+      printf(") -> %d\n", p->trapframe->a0);
     }
   }
   else

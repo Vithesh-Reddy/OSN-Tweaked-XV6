@@ -25,6 +25,9 @@ int sleep(int);
 int uptime(void);
 int trace(int);
 int set_priority(int, int);
+int set_tickets(int);
+int sigalarm(int ticks, void (*handler)());
+int sigreturn(void);
 
 // ulib.c
 int stat(const char*, struct stat*);

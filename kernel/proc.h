@@ -124,6 +124,14 @@ struct proc
 
   int mask;   // Mask used for trace()
 
+  // alarm
+  int alarmticks; // How many ticks until alarm
+  int currentticks; // How many ticks have passed since alarm was set
+  int alarmset; // Is alarm set?
+  struct trapframe *alarm_tf; // Trapframe for alarm
+  uint64 handler; // Address of alarm handler
+  int alarm_called;
+
   #ifdef LBS
   uint tickets;
   uint time_slice;

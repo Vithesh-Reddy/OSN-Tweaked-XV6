@@ -39,3 +39,6 @@ entry("uptime");
 entry("waitx");
 entry("trace");
 entry("set_priority");
+entry("set_tickets");
+entry("sigalarm");
+entry("sigreturn");

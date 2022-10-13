@@ -133,3 +133,36 @@ sys_set_priority(void)
   argint(1, &pid);
   return setpriority(new_priority, pid);
 }
+
+uint64 sys_sigalarm(void)
+{
+  uint64 addr;
+  int interval;
+
+  argint(0, &interval);
+  argaddr(1, &addr);
+
+  if (interval <= 0)
+  {
+    myproc()->alarm_called = 0;
+    return 0;
+  }
+  struct proc *p = myproc();
+
+  p->alarmticks = interval;
+  p->handler = addr;
+  p->alarm_called = 1;
+
+  return 0;
+}
+
+uint64 sys_sigreturn(void)
+{
+  struct proc *p = myproc();
+  memmove(p->trapframe, p->alarm_tf, PGSIZE);
+  kfree(p->alarm_tf);
+  p->alarm_tf = 0;
+  p->alarmset = 0;
+  p->currentticks = 0;
+  return p->trapframe->a0;
+}

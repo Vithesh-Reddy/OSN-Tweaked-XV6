@@ -171,6 +171,14 @@ found:
   p->etime = 0;
   p->ctime = ticks;
 
+  // alarm
+  p->alarmticks = 0;
+  p->currentticks = 0;
+  p->alarmset = 0;
+  p->alarm_called = 0;
+  p->alarm_tf = 0;
+  p->handler = 0;
+
 #ifdef LBS
   p->tickets = 1;
   p->time_slice = 1;
@@ -1185,11 +1193,6 @@ void procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
-}
-
-int trace(int mask)
-{
-  return 0;
 }
 
 int setpriority(int new_priority, int pid)

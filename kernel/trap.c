@@ -73,7 +73,21 @@ void usertrap(void)
   }
   else if ((which_dev = devintr()) != 0)
   {
-    // ok
+    if (which_dev == 2 && p->alarmset == 0 && p->alarm_called == 1)
+    {
+      // Save trapframe
+
+      struct trapframe *tf = kalloc();
+      memmove(tf, p->trapframe, PGSIZE);
+      p->alarm_tf = tf;
+
+      p->currentticks++;
+      if (p->currentticks >= p->alarmticks)
+      {
+        p->alarmset = 1;
+        p->trapframe->epc = p->handler;
+      }
+    }
   }
   else
   {
