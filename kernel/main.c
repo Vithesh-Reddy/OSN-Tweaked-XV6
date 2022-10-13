@@ -3,6 +3,8 @@
 #include "memlayout.h"
 #include "riscv.h"
 #include "defs.h"
+#include "stdlib.h"
+// #include "time.h"
 
 volatile static int started = 0;
 
@@ -41,5 +43,6 @@ main()
     plicinithart();   // ask PLIC for device interrupts
   }
 
+  // srand(time(NULL));
   scheduler();        
 }

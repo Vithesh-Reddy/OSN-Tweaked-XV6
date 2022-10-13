@@ -64,6 +64,13 @@ void usertrap(void)
 
     syscall();
   }
+  else if (r_scause() == 15)
+  {
+    if (cow_fault(p->pagetable, r_stval()) < 0)
+    {
+      setkilled(p);
+    }
+  }
   else if ((which_dev = devintr()) != 0)
   {
     // ok
@@ -290,4 +297,42 @@ int devintr()
   {
     return 0;
   }
+}
+
+int cow_fault(pagetable_t pagetable, uint64 va)
+{
+  // if ((va % PGSIZE) != 0)
+  //   return -1;
+
+  if (va >= MAXVA)
+    return -1;
+
+  if (va == 0)
+    return -1;
+
+  pte_t *pte = walk(pagetable, va, 0);
+  if (pte == 0)
+    return -1;
+
+  if ((*pte & PTE_U) == 0 || (*pte & PTE_V) == 0)
+    return -1;
+
+  uint64 pa = PTE2PA(*pte);
+  // if (pa == 0)
+  //   return -1;
+
+  if (*pte & PTE_COW)
+  {
+    uint64 newpa = (uint64)kalloc();
+    if (newpa == 0)
+      return -1;
+    memmove((void *)newpa, (void *)pa, PGSIZE);
+    *pte = PA2PTE(newpa) | PTE_U | PTE_V | PTE_W | PTE_X | PTE_R;
+    *pte &= (~PTE_COW);
+
+    decrease_paref(pa);
+    return 0;
+  }
+
+  return 0;
 }

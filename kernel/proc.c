@@ -6,7 +6,7 @@
 #include "proc.h"
 #include "defs.h"
 #include "stdlib.h"
-#include "time.h"
+// #include "time.h"
 
 #define MAX(x, y) \
   ({ typeof (x) _x = (x); \
@@ -853,24 +853,29 @@ int prioritizer(struct proc *p, struct proc *q)
   int priority_p = dpclaculator(p);
   int priority_q = dpclaculator(q);
 
-  // Nested else if.
   // Compare priority.
   if (priority_p < priority_q)
     return 1;
-  else
+  else if (priority_p > priority_q)
     return -1;
 
-  // If priorities are same compare no.of times process was scheduled.
-  if (p->times_scheduled < q->times_scheduled)
-    return 1;
   else
-    return -1;
+  {
+    // If priorities are same compare no.of times process was scheduled.
+    if (p->times_scheduled < q->times_scheduled)
+      return 1;
+    else if (p->times_scheduled > q->times_scheduled)
+      return -1;
 
-  // Still a tie, compare entry times of processes to ready queue.
-  if (p->entry_time < q->entry_time)
-    return 1;
-  else
-    return -1;
+    else
+    {
+      // Still a tie, compare entry times of processes to ready queue.
+      if (p->entry_time < q->entry_time)
+        return 1;
+      else if (p->entry_time > q->entry_time)
+        return -1;
+    }
+  }
 
   // When everything is tied return randomly.
   return 1;
