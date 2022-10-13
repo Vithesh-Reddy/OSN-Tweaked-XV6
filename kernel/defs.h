@@ -112,6 +112,7 @@ void            procdump(void);
 void            update_time(void);
 int             setpriority(int, int);    
 int             set_tickets(int);
+int             trace(int);
 
 // swtch.S
 void            swtch(struct context*, struct context*);

@@ -351,6 +351,9 @@ int fork(void)
   // Cause fork to return 0 in the child.
   np->trapframe->a0 = 0;
 
+  // copy the value of mask to child.
+  np->mask = p->mask;
+
   // increment reference counts on open file descriptors.
   for (i = 0; i < NOFILE; i++)
     if (p->ofile[i])
@@ -1182,6 +1185,11 @@ void procdump(void)
     printf("%d %s %s", p->pid, state, p->name);
     printf("\n");
   }
+}
+
+int trace(int mask)
+{
+  return 0;
 }
 
 int setpriority(int new_priority, int pid)

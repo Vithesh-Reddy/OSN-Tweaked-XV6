@@ -140,6 +140,7 @@ UPROGS=\
 	$U/_wc\
 	$U/_zombie\
 	$U/_setpriority\
+	$U/_strace\
 	$U/_cowtest\
 	$U/_schedulertest\
 
